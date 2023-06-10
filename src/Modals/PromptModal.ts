@@ -31,7 +31,7 @@ export class PromptModal extends Modal {
             const lowerCase = value.toLowerCase()
             const formattedValue = lowerCase.substring(1)
 
-            if ((formattedValue.contains(input) || value.contains(input)) && !value.contains("learning-plugin-score") && !value.contains("learning-plugin-date")) {
+            if ((formattedValue.contains(input) || value.contains(input)) && !value.contains("memorize-plugin-score") && !value.contains("memorize-plugin-date")) {
                 if(!suggestions.contains(value.toString())) {
                     suggestions.push({tag: value.toString(), titles: doc.titles, paths: doc.paths })
                 }

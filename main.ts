@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, FrontMatterCache, Plugin, PluginSettingTab, Setting, View, Workspace, WorkspaceLeaf, getAllTags, MetadataCache, CachedMetadata, TagCache, TAbstractFile, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, FrontMatterCache, Plugin, PluginSettingTab, Setting, View, Workspace, WorkspaceLeaf, getAllTags, MetadataCache, CachedMetadata, TagCache, TAbstractFile, TFile, FileManager } from 'obsidian';
 import { PromptModal } from 'src/Modals/PromptModal';
 import { Notes } from 'src/Models/Notes';
 
@@ -12,17 +12,25 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: 'default'
 }
 
+const REGEXREMOVE = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
+
 export default class Learning extends Plugin {
 	settings: MyPluginSettings;
 	private notes: Array<Notes>;
 	private suggestionResults: any | null
 	private currentLearningNote: number
 	private filteredTitles: any
+	private currentScore: string
+	private dateScoreChanges: Date
+	private previousDateScoreChange: Date
+	private efScore: string
 
 	async onload() {
-		console.log('loading plugin - Learning')
+		console.log('loading plugin - memorize')
 		await this.loadSettings();
 		this.currentLearningNote = 0
+		this.currentScore = '0'
+		this.efScore = '2.5'
 		this.notes = []
 
 		this.app.workspace.onLayoutReady( () => {
@@ -45,7 +53,9 @@ export default class Learning extends Plugin {
 		const ribbonIconEl = this.addRibbonIcon('star', 'Learning', async (evt: MouseEvent) => {
 			// Called when the user clicks the icon.
 			this.suggestionResults = await new PromptModal(this.app, this.notes).open()
-			this.filteredTitles =	this.suggestionResults.titles.filter((str: string) => !str.includes("[Learning-Plugin]"));
+			const filteredTitles =	this.suggestionResults.titles.filter((str: string) => !str.includes("[Memorize-Plugin]"));
+			this.filteredTitles = this.shuffleArray(filteredTitles)
+
 			if(this.suggestionResults) {
 				this.processModalChoice()
 			}
@@ -106,7 +116,7 @@ export default class Learning extends Plugin {
 		// // Using this function will automatically remove the event listener when this plugin is disabled.
 		this.registerDomEvent(document, 'click', async (evt: PointerEvent) => {
 			const element = evt.composedPath()[0] as HTMLInputElement;
-			if(element.id.contains("learning-plugin-radio")){
+			if(element.id.contains("memorize-plugin-radio")){
 				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (activeView) {
 					const file = activeView.file;
@@ -114,20 +124,36 @@ export default class Learning extends Plugin {
 					let content = await this.app.vault.read(file)
 					let finalContent = ""
 
-					if (content.includes('learning-plugin-score')){
-						const regex = /#learning-plugin-score-\d+/g
-						const regexDate = /#learning-plugin-date-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/
+					if (content.includes('memorize-plugin-score')){
+						// const regex = /#memorize-plugin-score-\d+/g
+						// const regexDate = /#memorize-plugin-current-date-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/
 
-						finalContent = content.replace(regex, `#learning-plugin-score-${element.value}`)
-						finalContent = finalContent.replace(regexDate, `#learning-plugin-date-${new Date().toISOString().replace(/[:]/g, '-').replace(/\./g, '-')}`)	
+						// finalContent = content.replace(regex, `#memorize-plugin-score-${element.value}`)
+						// finalContent = finalContent.replace(regexDate, `#memorize-plugin-current-date-${new Date().toISOString().replace(/[:]/g, '-').replace(/\./g, '-')}`)
+						const regexRemove = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
+
+						this.dateScoreChanges = new Date()
+						console.log("PREV DATE WHEN PRESSING: " + this.previousDateScoreChange)
+						
+						finalContent = content.replace(REGEXREMOVE, `\n---\nmemorize-plugin-ef:2.5\nmemorize-plugin-score:${element.value}\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\n---\n`);
+						console.log("After")
+						// console.log(updatedContent)
+
+						// const frontmatter = `\n---\nmemorize-plugin-ef:2.5\nmemorize-plugin-score:-1\nmemorize-plugin-current-date:${new Date().getDay()}\n---\n`
+						// const updatedContent = frontmatter + updatedStr
+						//await this.app.vault.create(fileName, updatedContent)
 					} else {
-						finalContent = content + `\n\n\n #learning-plugin-score-${element.value} #learning-plugin-date-${new Date().toISOString().replace(/[:]/g, '-').replace(/\./g, '-')}`
+						const date = new Date()
+						finalContent = `\n---\nmemorize-plugin-ef:2.5\nmemorize-plugin-score:${element.value}\nmemorize-plugin-current-date:${date}\nmemorize-plugin-previous-date:${date}\n---\n` + content
+						this.previousDateScoreChange = date
 					}
 					
+					this.currentScore = element.value
 					this.app.vault.modify(file, finalContent)
 				}
 			} 
-			else if (element.id.contains("learning-plugin-button")) {
+			else if (element.id.contains("memorize-plugin-button")) {
+				this.calculateSuperMemoEF()
         		this.processModalChoice()
       		}
 		});
@@ -138,6 +164,26 @@ export default class Learning extends Plugin {
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+	}
+
+	calculateSuperMemoEF() {
+		console.log("calculate")
+		console.log(this.dateScoreChanges)
+		console.log(this.previousDateScoreChange)
+		console.log(this.currentScore)
+	}
+
+	shuffleArray(array: string[]): string[] {
+		// Create a copy of the original array
+		const shuffledArray = [...array];
+	  
+		// Perform Fisher-Yates shuffle
+		for (let i = shuffledArray.length - 1; i > 0; i--) {
+		  const j = Math.floor(Math.random() * (i + 1));
+		  [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+		}
+	  
+		return shuffledArray;
 	}
 
 	async processModalChoice() {
@@ -161,39 +207,51 @@ export default class Learning extends Plugin {
 			if (lastPeriodIndex !== -1) {
 				const beforePeriod = fileName.slice(0, lastPeriodIndex);
 			
-				fileName = `[Learning-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
+				fileName = `[Memorize-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
 			}
 		
 			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote])
-		
+
 			let content = await this.app.vault.read(originalFile as TFile)
 			const formattedContent = content.replace(/[\r\n]+/g, '\n>')
 		
+
+	
 			content = '>[!INFO]- ' + formattedContent
 			content += '\n\n\n\n<form id="learning_level">\
-			<input type="radio" id="learning-plugin-radio-option0" name="radioOptions" value="0" onchange="()=>{console.log("clicked")}">\
-			<label for="option0">0</label>\
+			<input type="radio" id="memorize-plugin-radio-option0" name="radioOptions" value="0">\
+			<label for="memorize-plugin-radio-option0">0</label>\
 			<br>\
-			<input type="radio" id="learning-plugin-radio-option1" name="radioOptions" value="1" onchange="handleRadioChange(this)">\
-			<label for="option1">1</label>\
+			<input type="radio" id="memorize-plugin-radio-option1" name="radioOptions" value="1">\
+			<label for="memorize-plugin-radio-option1">1</label>\
 			<br>\
-			<input type="radio" id="learning-plugin-radio-option2" name="radioOptions" value="2" onchange="handleRadioChange(this)">\
-			<label for="option2">2</label>\
+			<input type="radio" id="memorize-plugin-radio-option2" name="radioOptions" value="2">\
+			<label for="memorize-plugin-radio-option2">2</label>\
 			<br>\
-			<input type="radio" id="learning-plugin-radio-option3" name="radioOptions" value="3" onchange="handleRadioChange(this)">\
-			<label for="option3">3</label>\
+			<input type="radio" id="memorize-plugin-radio-option3" name="radioOptions" value="3">\
+			<label for="memorize-plugin-radio-option3">3</label>\
 			<br>\
-			<input type="radio" id="learning-plugin-radio-option4" name="radioOptions" value="4" onchange="handleRadioChange(this)">\
-			<label for="option4">4</label>\
+			<input type="radio" id="memorize-plugin-radio-option4" name="radioOptions" value="4">\
+			<label for="memorize-plugin-radio-option4">4</label>\
 			</form> \
-			<input id="learning-plugin-button" value="Next" type="button"/>'
+			<input id="memorize-plugin-button" value="Next" type="button"/>'
 		
 			
 			try { 
-				await this.app.vault.create(fileName, content)
+				const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
+
+				const updatedStr = content.replace(regex, "");
+				this.dateScoreChanges = new Date()
+				this.previousDateScoreChange = this.dateScoreChanges
+				const frontmatter = `\n---\nmemorize-plugin-ef:2.5\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\n---\n`
+				const updatedContent = frontmatter + updatedStr
+
+				console.log(updatedContent)
+				await this.app.vault.create(fileName, updatedContent)
 				await this.app.workspace.openLinkText(fileName, fileName, true, { state: { mode: 'preview' } })
 			}
 			catch(error) {
+				console.log("already created: " + error)
 				await this.app.workspace.openLinkText(fileName, fileName, false, { state: { mode: 'preview' } })
 			}
 		} else {
@@ -201,7 +259,7 @@ export default class Learning extends Plugin {
 			if (lastPeriodIndex !== -1) {
 				const beforePeriod = fileName.slice(0, lastPeriodIndex);
 			
-				fileName = `[Learning-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
+				fileName = `[Memorize-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
 			}
 		
 			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote])
@@ -211,29 +269,36 @@ export default class Learning extends Plugin {
 		
 			content = '>[!INFO]- ' + formattedContent
 			content += '\n\n\n\n<form id="learning_level">\
-			<input type="radio" id="learning-plugin-radio-option0" name="radioOptions" value="0" onchange="()=>{console.log("clicked")}">\
-			<label for="option0">0</label>\
-			<br>\
-			<input type="radio" id="learning-plugin-radio-option1" name="radioOptions" value="1" onchange="handleRadioChange(this)">\
-			<label for="option1">1</label>\
-			<br>\
-			<input type="radio" id="learning-plugin-radio-option2" name="radioOptions" value="2" onchange="handleRadioChange(this)">\
-			<label for="option2">2</label>\
-			<br>\
-			<input type="radio" id="learning-plugin-radio-option3" name="radioOptions" value="3" onchange="handleRadioChange(this)">\
-			<label for="option3">3</label>\
-			<br>\
-			<input type="radio" id="learning-plugin-radio-option4" name="radioOptions" value="4" onchange="handleRadioChange(this)">\
-			<label for="option4">4</label>\
-			</form>\
-			<input id="learning-plugin-button" value="Next" type="button"/>'
-		
+				<input type="radio" id="memorize-plugin-radio-option0" name="radioOptions" value="0">\
+				<label for="option0">0</label>\
+				<br>\
+				<input type="radio" id="memorize-plugin-radio-option1" name="radioOptions" value="1">\
+				<label for="option1">1</label>\
+				<br>\
+				<input type="radio" id="memorize-plugin-radio-option2" name="radioOptions" value="2">\
+				<label for="option2">2</label>\
+				<br>\
+				<input type="radio" id="memorize-plugin-radio-option3" name="radioOptions" value="3">\
+				<label for="option3">3</label>\
+				<br>\
+				<input type="radio" id="memorize-plugin-radio-option4" name="radioOptions" value="4">\
+				<label for="option4">4</label>\
+				</form>\
+				<input id="memorize-plugin-button" value="Next" type="button"/>'
 			
 			try { 
-				await this.app.vault.create(fileName, content)
+				const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
+				const updatedStr = content.replace(regex, "");
+				this.dateScoreChanges = new Date()
+				this.previousDateScoreChange = this.dateScoreChanges
+				const frontmatter = `\n---\nmemorize-plugin-ef:2.5\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\n---\n`
+				const updatedContent = frontmatter + updatedStr
+				await this.app.vault.create(fileName, updatedContent)
+
 				await this.app.workspace.openLinkText(fileName, fileName, true, { state: { mode: 'preview' } })
 			}
 			catch(error) {
+				console.log("already created: " + error)
 				await this.app.workspace.openLinkText(fileName, fileName, false, { state: { mode: 'preview' } })
 			}
 		}
@@ -241,6 +306,58 @@ export default class Learning extends Plugin {
 
 	onFileOpen = async (file: TFile) => {
 		console.log("file opened")
+		if (file.name.contains("[Memorize-Plugin]")){
+			const scoreRegex = /memorize-plugin-score:\s*(\d+)/;
+			const prevDateRegex = /memorize-plugin-previous-date:\s*(\d+)/;
+			const curDateRegex = /memorize-plugin-current-date:\s*(\d+)/;
+			const efRegex = /memorize-plugin-ef:\s*(\d+)/;
+
+			const contents = await this.app.vault.read(file)
+
+			if (contents.contains("memorize-plugin-ef")) {
+				// Use the match method to extract the value
+				const match = contents.match(scoreRegex);
+				const dateMatch = contents.match(curDateRegex)
+				const prevDateMatch = contents.match(prevDateRegex)
+				const efMatch = contents.match(efRegex)
+				// Extract the value from the match result
+				this.currentScore = (match && match[1]) as string; // Access the first captured group
+				this.previousDateScoreChange 
+				console.log("prev date match: " + prevDateMatch)
+				const prevDate = (prevDateMatch && prevDateMatch[1]) as string;
+				const currentDate = (dateMatch && dateMatch[1]) as string;
+				console.log("prev date: " + prevDate)
+				this.previousDateScoreChange = new Date(prevDate)
+				this.dateScoreChanges = new Date(currentDate)
+				this.efScore = (efMatch && efMatch[1]) as string;
+				// const contents = await this.app.vault.read(file)
+				// const metaCache = this.app.metadataCache.getFileCache(file)
+				// //metaCache?.frontmatter["tags"]
+				// const frontmatter: FrontMatterCache = metaCache?.frontmatter as FrontMatterCache;
+				
+				// if(frontmatter){
+				// 	if('memorize-p' in frontmatter){
+				// 		console.log("we got tags")
+				// 		console.log(frontmatter["bills"])
+				// 	}
+				// 	let tags = frontmatter["tags"]
+				// 	tags += " anothertag"
+				// 	frontmatter["tags"] = tags
+				// }
+				// else {
+				// 	console.log("we here")
+				// 	// const frontmatter = `\n---\nmemorize-plugin-ef: 2.5\nmemorize-plugin-score:-1\nmemorize-plugin-current-date:${new Date().getDay()}\n---\n`
+				// 	// const finalContent = frontmatter + contents
+				// 	// this.app.vault.modify(file, finalContent)
+				// }
+
+				// // await this.app.vault.modify(file, { frontmatter: updatedFrontmatter });
+				// // const cache = this.app.metadataCache.getCache(file.path)
+				// // const tags = getAllTags(cache as CachedMetadata)
+				
+			}
+
+		}
 	}
 
 	onunload() {
