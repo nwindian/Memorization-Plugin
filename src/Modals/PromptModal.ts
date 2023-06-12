@@ -105,6 +105,10 @@ export class PromptModal extends Modal {
 
                     // const leaf = this.app.workspace.getLeavesOfType(LEARNING_TYPE)[0]
                     // this.app.workspace.getLeaf().open(new PromptView(leaf, suggestion, 0))
+                    console.log("suggestion: ")
+                    console.log(suggestion)
+                    const filteredTitles =	suggestion.titles.filter((str: string) => !str.includes("[Memorize-Plugin]"));
+                    suggestion.titles = filteredTitles
                     if (this.resolveFn) {
                         this.resolveFn(suggestion);
                         this.resolveFn = null;
