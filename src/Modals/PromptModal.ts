@@ -1,5 +1,6 @@
 import { Modal, App, TAbstractFile, TFile } from 'obsidian'
 import { Notes } from 'src/Models/Notes'
+import { FilteredTitle } from 'src/Models/FilteredTitles'
 
 export class PromptModal extends Modal {
     private notes: Array<Notes>
@@ -108,7 +109,8 @@ export class PromptModal extends Modal {
                     console.log("suggestion: ")
                     console.log(suggestion)
                     const filteredTitles =	suggestion.titles.filter((str: string) => !str.includes("[Memorize-Plugin]"));
-                    suggestion.titles = filteredTitles
+
+                    suggestion.titles = await this.orderTitles(filteredTitles)
                     if (this.resolveFn) {
                         this.resolveFn(suggestion);
                         this.resolveFn = null;
@@ -122,5 +124,38 @@ export class PromptModal extends Modal {
                 suggestionsContainer.appendChild(item)
             })
         })
+    }
+
+    async orderTitles(titles: Array<any>): Promise<FilteredTitle[]>{
+        const orderedTitles: FilteredTitle[] = []
+        for (var title of titles) {
+            const originalFile = this.app.vault.getAbstractFileByPath(title)
+
+			const content = await this.app.vault.read(originalFile as TFile)
+            const match = content.match(/memorize-plugin-interval:(\d+)/)
+            debugger
+            let interval = (match && match[1]) as string;
+
+            if(!interval){
+                interval = '0'
+            }
+            console.log("content: "+ content)
+            orderedTitles.push({title: title, orderNumber: parseInt(interval)})
+        }
+
+        orderedTitles.sort((a: FilteredTitle, b: FilteredTitle): number => {
+            if ( a.orderNumber < b.orderNumber ) {
+                return -1
+            }
+            if (a.orderNumber > b.orderNumber) {
+                return 1
+            }
+
+            return 0
+        })
+        console.log("ordered: ")
+        console.log(orderedTitles)
+
+        return orderedTitles
     }
 }

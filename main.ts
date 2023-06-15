@@ -1,6 +1,7 @@
 import { App, Editor, MarkdownView, Modal, FrontMatterCache, Plugin, PluginSettingTab, Setting, View, Workspace, WorkspaceLeaf, getAllTags, MetadataCache, CachedMetadata, TagCache, TAbstractFile, TFile, FileManager } from 'obsidian';
 import { PromptModal } from 'src/Modals/PromptModal';
 import { Notes } from 'src/Models/Notes';
+import { FilteredTitle } from 'src/Models/FilteredTitles'
 
 // Remember to rename these classes and interfaces!
 
@@ -35,7 +36,6 @@ export default class Learning extends Plugin {
 		this.currentScore = '0'
 		this.previousEF = '2.5'
     this.repetitions = '0'
-    console.log("reps: "+ this.repetitions)
 		this.notes = []
 
 		this.app.workspace.onLayoutReady( () => {
@@ -43,25 +43,28 @@ export default class Learning extends Plugin {
 				let notes: Notes[] = [];
 
 				let i = 0;
-				 files.forEach( (file) => {
-					const cache = this.app.metadataCache.getCache(file.path)
+				files.forEach( (file) => {
+          console.log("file1: " + file)
+				  const cache = this.app.metadataCache.getCache(file.path)
 					const tags = getAllTags(cache as CachedMetadata)
 
 					notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
 					i++
-				 })
+				})
 
-				 this.notes = notes
+				this.notes = notes
 		})
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('star', 'Learning', async (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
+		  // Called when the user clicks the icon.
 			this.suggestionResults = await new PromptModal(this.app, this.notes).open()
-      console.log(this.suggestionResults)
-			// const filteredTitles =	this.suggestionResults.titles.filter((str: string) => !str.includes("[Memorize-Plugin]"));
-			this.filteredTitles = this.shuffleArray(this.suggestionResults.titles)
 
+			// const filteredTitles =	this.suggestionResults.titles.filter((str: string) => !str.includes("[Memorize-Plugin]"));
+			this.filteredTitles = this.suggestionResults.titles
+
+      console.log("filteredTitles: ") 
+      console.log(this.filteredTitles)
 			if(this.suggestionResults) {
 				this.processModalChoice()
 			}
@@ -104,9 +107,6 @@ export default class Learning extends Plugin {
 					if (!checking) {
 						// const modal = new PromptModal(this.app, this.notes)
 						// modal.open()
-						// console.log(modal)
-						// console.log(modal.getStuff())
-						// console.log("hm: " + modal.stuff)
 					}
 
 					// This command will only show up in Command Palette when the check function returns true
@@ -134,12 +134,10 @@ export default class Learning extends Plugin {
 						const regexRemove = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
 
 						this.dateScoreChanges = new Date().toISOString()
-						console.log(this)
-            console.log("reps1: "+ this.repetitions)
+
 						finalContent = content.replace(REGEXREMOVE, `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:${element.value}\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\nmemorize-plugin-repetitions:${this.repetitions}\nmemorize-plugin-interval:${this.interval}\n---\n`);
 					} else {
 						const date = new Date().toISOString()
-            console.log("reps2: "+ this.repetitions)
 						finalContent = `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:${element.value}\nmemorize-plugin-current-date:${date}\nmemorize-plugin-previous-date:${date}\nmemorize-plugin-repetitions:${this.repetitions}\nmemorize-plugin-interval:${this.interval}\n---\n` + content
 						this.previousDateScoreChange = date
 					}
@@ -149,17 +147,20 @@ export default class Learning extends Plugin {
 				}
 			} 
 			else if (element.id.contains("memorize-plugin-button")) {
-        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+       	const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (activeView) {
-          const file = activeView.file;
-          let content = await this.app.vault.read(file)
-          const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
-          console.log("reps3: "+ this.repetitions)
-          const finalContent = content.replace(REGEXREMOVE, `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:${element.value}\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\nmemorize-plugin-repetitions:${parseInt(this.repetitions, 10)}\nmemorize-plugin-interval:${this.interval}\n---\n`);
 
-          this.app.vault.modify(file, finalContent)
-          this.calculateSuperMemoEF()
-          this.processModalChoice()
+					this.calculateSuperMemoEF()
+          const file = activeView.file;
+					let content = await this.app.vault.read(file)
+					const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
+
+					const finalContent = content.replace(REGEXREMOVE, `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:${this.currentScore}\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\nmemorize-plugin-repetitions:${parseInt(this.repetitions, 10)}\nmemorize-plugin-interval:${this.interval}\n---\n`);
+
+         
+					this.app.vault.modify(file, finalContent)
+          console.log(this)
+					this.processModalChoice()
         }
       }
 		});
@@ -173,12 +174,13 @@ export default class Learning extends Plugin {
 	}
 
 	calculateSuperMemoEF() {
-    const repetitions = parseInt(this.repetitions, 10)
-    const quality = parseInt(this.currentScore, 10)
-    const interval = parseInt(this.interval, 10)
-    let ef = parseFloat(this.previousEF)
-    ef = parseFloat(ef.toFixed(1))
-    if(quality >= 3){
+		const repetitions = parseInt(this.repetitions, 10)
+		const quality = parseInt(this.currentScore, 10)
+		const interval = parseInt(this.interval, 10)
+		let ef = parseFloat(this.previousEF)
+		ef = parseFloat(ef.toFixed(1))
+
+		if(quality >= 3){
       if(repetitions === 0){
         this.interval = '1'
       } else if (repetitions === 1){
@@ -190,18 +192,13 @@ export default class Learning extends Plugin {
 
       this.repetitions = (repetitions + 1).toString()
       this.previousEF = (ef + (.1 - (5 - quality) * (.08 + (5 - quality) * .02))).toFixed(1)
-    } else {
-      this.repetitions = '0'
-      this.interval = '1'
-    }
-    if (ef < 1.3){
-      this.previousEF = '1.3'
-    }
-		// console.log("calculate")
-		// console.log(this.dateScoreChanges)
-		// console.log(this.previousDateScoreChange)
-		// console.log(this.currentScore)
-    // console.log(this.previousEF)
+		} else {
+	    this.repetitions = '0'
+		  this.interval = '1'
+		}
+		if (ef < 1.3){
+		  this.previousEF = '1.3'
+		}
 	}
 
 	shuffleArray(array: string[]): string[] {
@@ -221,19 +218,27 @@ export default class Learning extends Plugin {
 		let fileName = ""
 		if (this.currentLearningNote < this.filteredTitles.length - 1){
 			fileName = this.filteredTitles[this.currentLearningNote];
+      console.log(fileName)
 			await this.constructLearningNote(false, fileName)
 
 			this.currentLearningNote += 1
 		} else {
 			fileName = this.filteredTitles[this.currentLearningNote];
+      console.log(fileName)
 			await this.constructLearningNote(true, fileName)
 
 			this.currentLearningNote = 0
 		}
 	}
 
-	async constructLearningNote(isLastNote: boolean, fileName: string) {
+	async constructLearningNote(isLastNote: boolean, file: any) {
+    console.log("file: ")
+    console.log(file)
+    let fileName = file.title
 		if (!isLastNote) {
+      console.log("filename: "+ fileName)
+      console.log(fileName)
+      
 			const lastPeriodIndex = fileName.lastIndexOf(".");
 			if (lastPeriodIndex !== -1) {
 				const beforePeriod = fileName.slice(0, lastPeriodIndex);
@@ -241,7 +246,7 @@ export default class Learning extends Plugin {
 				fileName = `[Memorize-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
 			}
 
-			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote])
+			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote].title)
 
 			let content = await this.app.vault.read(originalFile as TFile)
 			const formattedContent = content.replace(/[\r\n]+/g, '\n>')
@@ -263,9 +268,9 @@ export default class Learning extends Plugin {
 			<br>\
 			<input type="radio" id="memorize-plugin-radio-option4" name="radioOptions" value="4">\
 			<label for="memorize-plugin-radio-option4">4</label>\
-      <br>\
-      <input type="radio" id="memorize-plugin-radio-option5" name="radioOptions" value="5">\
-      <label for="option5">5</label>\
+			<br>\
+			<input type="radio" id="memorize-plugin-radio-option5" name="radioOptions" value="5">\
+			<label for="option5">5</label>\
 			</form> \
 			<input id="memorize-plugin-button" value="Next" type="button"/>'
 
@@ -274,9 +279,14 @@ export default class Learning extends Plugin {
 				const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
 
 				const updatedStr = content.replace(regex, "");
-				this.dateScoreChanges = new Date().toISOString()
-				this.previousDateScoreChange = this.dateScoreChanges
-				const frontmatter = `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\nmemorize-plugin-repetitions:0\nmemorize-plugin-interval:${this.interval}\n---\n`
+				const dateScoreChanges = new Date().toISOString()
+				//this.previousDateScoreChange = this.dateScoreChanges
+
+        const interval = '0'
+        const currentScore = '0'
+        const previousEF = '2.5'
+        const repetitions = '0'
+				const frontmatter = `\n---\nmemorize-plugin-ef:${previousEF}\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${dateScoreChanges}\nmemorize-plugin-previous-date:${dateScoreChanges}\nmemorize-plugin-repetitions:${repetitions}\nmemorize-plugin-interval:${interval}\n---\n`
 				const updatedContent = frontmatter + updatedStr
 
 				await this.app.vault.create(fileName, updatedContent)
@@ -287,6 +297,9 @@ export default class Learning extends Plugin {
 				await this.app.workspace.openLinkText(fileName, fileName, false, { state: { mode: 'preview' } })
 			}
 		} else {
+      console.log("filename else: ")
+      // console.log(fileName)
+      // const files = this.orderTitles(this.)
 			const lastPeriodIndex = fileName.lastIndexOf(".");
 			if (lastPeriodIndex !== -1) {
 				const beforePeriod = fileName.slice(0, lastPeriodIndex);
@@ -294,7 +307,7 @@ export default class Learning extends Plugin {
 				fileName = `[Memorize-Plugin]-${beforePeriod}${fileName.slice(lastPeriodIndex)}`;
 			}
 
-			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote])
+			const originalFile = this.app.vault.getAbstractFileByPath(this.filteredTitles[this.currentLearningNote].title)
 
 			let content = await this.app.vault.read(originalFile as TFile)
 			const formattedContent = content.replace(/[\r\n]+/g, '\n>')
@@ -324,10 +337,14 @@ export default class Learning extends Plugin {
 			try {
 				const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
 				const updatedStr = content.replace(regex, "");
-				this.dateScoreChanges = new Date().toISOString()
-				this.previousDateScoreChange = this.dateScoreChanges
-        console.log("interval: "+ this.interval)
-				const frontmatter = `\n---\nmemorize-plugin-ef:${this.previousEF}\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${this.dateScoreChanges}\nmemorize-plugin-previous-date:${this.previousDateScoreChange}\nmemorize-plugin-repetitions:${this.repetitions}\nmemorize-plugin-interval:${this.interval}\n---\n`
+				const dateScoreChanges = new Date().toISOString()
+				//this.previousDateScoreChange = this.dateScoreChanges
+
+        const interval = '0'
+        const currentScore = '0'
+        const previousEF = '2.5'
+        const repetitions = '0'
+				const frontmatter = `\n---\nmemorize-plugin-ef:${previousEF}\nmemorize-plugin-score:0\nmemorize-plugin-current-date:${dateScoreChanges}\nmemorize-plugin-previous-date:${dateScoreChanges}\nmemorize-plugin-repetitions:${repetitions}\nmemorize-plugin-interval:${interval}\n---\n`
 				const updatedContent = frontmatter + updatedStr
 				await this.app.vault.create(fileName, updatedContent)
 
@@ -340,9 +357,38 @@ export default class Learning extends Plugin {
 		}
 	}
 
+  async orderTitles(titles: Array<any>): Promise<FilteredTitle[]>{
+    const orderedTitles: FilteredTitle[] = []
+    for (var title of titles) {
+        const originalFile = this.app.vault.getAbstractFileByPath(title)
+
+  const content = await this.app.vault.read(originalFile as TFile)
+        const match = content.match(/memorize-plugin-interval:(\d+)/)
+        let interval = (match && match[1]) as string;
+
+        if(!interval){
+            interval = '0'
+        }
+        console.log("content: "+ content)
+        orderedTitles.push({title: title, orderNumber: parseInt(interval)})
+    }
+
+    orderedTitles.sort((a: FilteredTitle, b: FilteredTitle): number => {
+        if ( b.orderNumber < a.orderNumber ) {
+            return b.orderNumber
+        }
+        return a.orderNumber
+    })
+    console.log("ordered: ")
+    console.log(orderedTitles)
+
+    return orderedTitles
+}
+
 	onFileOpen = async (file: TFile) => {
-		console.log("file opened")
+		//console.log("file opened")
 		if (file.name.contains("[Memorize-Plugin]")){
+      console.log("This is a memorize generated note")
 			const scoreRegex = /memorize-plugin-score:\s*(\d+)/;
 			const prevDateRegex = /memorize-plugin-previous-date:(.*)/;
 			const curDateRegex = /memorize-plugin-current-date:(.*)/;
@@ -353,7 +399,7 @@ export default class Learning extends Plugin {
 			const contents = await this.app.vault.read(file)
 
 			if (contents.contains("memorize-plugin-ef")) {
-				// Use the match method to extract the value
+				console.log("This note has been scored")
 				const match = contents.match(scoreRegex);
 				const dateMatch = contents.match(curDateRegex)
 				const prevDateMatch = contents.match(prevDateRegex)
@@ -368,9 +414,11 @@ export default class Learning extends Plugin {
 				const prevDate = (prevDateMatch && prevDateMatch[1]) as string;
 				const currentDate = (dateMatch && dateMatch[1]) as string;
 
-        console.log("reps4: " + (repetitionsMatch && repetitionsMatch[1]) as string)
-        this.interval = (intervalMatch && intervalMatch[1]) as string;
-        this.repetitions = (repetitionsMatch && repetitionsMatch[1]) as string;
+
+        		this.interval = (intervalMatch && intervalMatch[1]) as string;
+
+        		this.repetitions = (repetitionsMatch && repetitionsMatch[1]) as string;
+
 				this.previousDateScoreChange = new Date(prevDate).toISOString()
 				this.dateScoreChanges = new Date(currentDate).toISOString()
 				this.previousEF = (efMatch && efMatch[1]) as string;
