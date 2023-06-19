@@ -35,23 +35,19 @@ export default class Learning extends Plugin {
 		this.notes = []
     this.studyNotes = []
 
-		this.app.workspace.onLayoutReady( () => {
-				const files =  this.app.vault.getMarkdownFiles()
-				let notes: Notes[] = [];
-
-				let i = 0;
-				files.forEach( (file) => {
-				  const cache = this.app.metadataCache.getCache(file.path)
-					const tags = getAllTags(cache as CachedMetadata)
-
-					notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
-					i++
-				})
-
-				this.notes = notes
-		})
-
 		this.addRibbonIcon('brain-cog', 'Memorize Notes', async () => {
+      const files =  this.app.vault.getMarkdownFiles()
+      let notes: Notes[] = [];
+      let i = 0
+      files.forEach( (file) => {
+        const cache = this.app.metadataCache.getCache(file.path)
+        const tags = getAllTags(cache as CachedMetadata)
+
+        notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
+        i++
+      })
+
+      this.notes = notes
 			this.suggestionResults = await new PromptModal(this.app, this.notes).open()
 			this.filteredTitles = this.suggestionResults.titles
 			this.suggestionResults.titles = this.filteredTitles
@@ -59,11 +55,15 @@ export default class Learning extends Plugin {
 			const p = this.suggestionResults.titlePaths[0].path
 			const s = normalizePath(p)
 
+      this.studyNotes = []
 			for (const titlePath of this.suggestionResults.titlePaths) {
         		this.studyNotes.push(new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path)))
 			}
 
       this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
+
+      console.log("studynotes")
+      console.log(this.studyNotes)
 
       this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
       this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
@@ -71,26 +71,38 @@ export default class Learning extends Plugin {
 
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
 		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
+			id: 'PromptModal',
+			name: 'Study tag',
 			checkCallback: (checking: boolean) => {
+        if (!checking) {
+          (async () => {
+            const files =  this.app.vault.getMarkdownFiles()
+            let notes: Notes[] = [];
+            let i = 0
+            files.forEach( (file) => {
+              const cache = this.app.metadataCache.getCache(file.path)
+              const tags = getAllTags(cache as CachedMetadata)
 
-					if (!checking) {
-            (async () => {
-              this.suggestionResults = await new PromptModal(this.app, this.notes).open()
-              this.filteredTitles = this.suggestionResults.titles
-			  this.suggestionResults.titles = this.filteredTitles
-        
-              for (const titlePath of this.suggestionResults.titlePaths) {
-                this.studyNotes.push(new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path)))
-              }
-        
-              this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
-              
-              this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
-              this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
-            })();
-					}
+              notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
+              i++
+            })
+
+            this.notes = notes
+            this.suggestionResults = await new PromptModal(this.app, this.notes).open()
+            this.filteredTitles = this.suggestionResults.titles
+            this.suggestionResults.titles = this.filteredTitles
+
+            this.studyNotes = []
+            for (const titlePath of this.suggestionResults.titlePaths) {
+              this.studyNotes.push(new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path)))
+            }
+
+            this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
+
+            this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
+            this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
+          })();
+        }
 
           return true
 			}

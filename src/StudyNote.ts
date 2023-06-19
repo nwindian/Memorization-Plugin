@@ -1,4 +1,4 @@
-import { App, MarkdownView, TFile, TAbstractFile } from 'obsidian'
+import { App, MarkdownView, TFile, TAbstractFile, normalizePath } from 'obsidian'
 
 export const DIRECTORYPATH = './MemorizationPlugin/'
 const PATH = 'MemorizationPlugin/'
@@ -17,8 +17,9 @@ export class StudyNote {
   private file: TFile
 
   constructor(app: App, title: string, path: string) {
+    console.log("title: " + title)
     this.originalTitle = title
-    this.title = '[Memorization-Plugin]-' + title;
+    this.title = this.formatNewTitle(title)
     this.path = PATH + this.title
     this.app = app
     this.efScore = '2.5'
@@ -28,6 +29,16 @@ export class StudyNote {
     this.quality = '0'
 
     this.createStudyNote()
+  }
+
+  formatNewTitle(title: string): string {
+
+    const words = title.split('/');
+    const modifiedWords = words.map(word => `[Memorization-Plugin]-${word}`);
+
+    const resultString = modifiedWords.join('/');
+
+    return resultString
   }
 
   async createStudyNote() {
@@ -70,15 +81,47 @@ export class StudyNote {
       const updatedContent = frontmatter + updatedStr
       this.content = updatedContent
 
-      this.file = await this.app.vault.create(this.path, updatedContent)
+      await this.initializeNotes(updatedContent)
+
+      //this.file = await this.app.vault.create(this.path, updatedContent)
       const file = this.app.vault.getAbstractFileByPath(this.path);
       if(file) {
         file.name = this.title
       }
     }
     catch(error) {
+      debugger
       this.loadFile()
-    }    
+    }
+  }
+
+  async initializeNotes(updatedContent: string) {
+    //const splitPaths = this.path.split("/")
+    const results = this.path.split("/").reduce((result: string[], directory: string) => {
+      if (result.length === 0) {
+        result.push(directory);
+      } else {
+        const lastDirectory = result[result.length - 1];
+        result.push(`${lastDirectory}/${directory}`);
+      }
+      return result;
+    }, []);
+
+    console.log(results)
+    console.log(this.path)
+
+    for(const path of results) {
+      if(path == 'MemorizationPlugin'){
+        continue
+      } else if(path.contains(".md")) {
+        await this.app.vault.create(this.path, updatedContent)
+      } else {
+        const file = await this.app.vault.adapter.exists(normalizePath(path))
+        if(!file){
+          await this.app.vault.createFolder(path)
+        }
+      }
+    }
   }
 
   deleteNote() {
@@ -177,8 +220,10 @@ export class StudyNote {
   }
 
   async display(createTabs: boolean): Promise<void> {
+    console.log(this.path)
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await this.app.workspace.openLinkText(this.path as string, this.path as string, createTabs, { state: { mode: 'preview' } })
-
+    console.log("after")
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (activeView) {
       const viewState = activeView.getState();
