@@ -104,7 +104,6 @@ export class PromptModal extends Modal {
                       return { title: value, path: suggestion.paths[index] };
                   });
                   suggestion.titlePaths = mergedArray
-                  console.log(suggestion)
                   if (this.resolveFn) {
                       this.resolveFn(suggestion);
                       this.resolveFn = null;

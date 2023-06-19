@@ -62,9 +62,6 @@ export default class Learning extends Plugin {
 
       this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
 
-      console.log("studynotes")
-      console.log(this.studyNotes)
-
       this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
       this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
 		});
