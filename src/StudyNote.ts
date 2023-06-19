@@ -88,6 +88,7 @@ export class StudyNote {
       }
     }
     catch(error) {
+      console.log(error)
       this.loadFile()
     }
   }
@@ -103,14 +104,18 @@ export class StudyNote {
       return result;
     }, []);
 
-    for(const path of results) {
+    console.log(results)
+    for(let path of results) {
       if(path == 'MemorizationPlugin'){
         continue
-      } else if(path.contains(".md")) {
-        await this.app.vault.create(this.path, updatedContent)
+      } else if (path.contains(".md")) {
+        console.log(updatedContent)
+        await this.app.vault.create(path, updatedContent)
       } else {
         const file = await this.app.vault.adapter.exists(normalizePath(path))
-        if(!file){
+        console.log(path)
+        if(file){
+          console.log("WHY")
           await this.app.vault.createFolder(path)
         }
       }
@@ -213,7 +218,7 @@ export class StudyNote {
   }
 
   async display(createTabs: boolean): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    console.log(this.path)
     await this.app.workspace.openLinkText(this.path as string, this.path as string, createTabs, { state: { mode: 'preview' } })
 
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
