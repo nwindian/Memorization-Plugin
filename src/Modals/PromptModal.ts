@@ -29,10 +29,10 @@ export class PromptModal extends Modal {
 
       this.docs.forEach((doc) => {
           const value = (doc as { value: String }).value
-          const lowerCase = value.toLowerCase()
-          const formattedValue = lowerCase.substring(1)
+          const lowerCase = value.toLowerCase().substring(1)
+          const upperCase = value.toUpperCase().substring(1)
 
-          if ((formattedValue.contains(input) || value.contains(input)) && !value.contains("MemorizationPlugin")) {
+          if ((lowerCase.contains(input) || upperCase.contains(input) || value.contains(input)) && !value.contains("MemorizationPlugin")) {
               if(!suggestions.contains(value.toString())) {
                   suggestions.push({tag: value.toString(), titles: doc.titles, paths: doc.paths })
               }
@@ -104,7 +104,6 @@ export class PromptModal extends Modal {
                       return { title: value, path: suggestion.paths[index] };
                   });
                   suggestion.titlePaths = mergedArray
-
                   if (this.resolveFn) {
                       this.resolveFn(suggestion);
                       this.resolveFn = null;
