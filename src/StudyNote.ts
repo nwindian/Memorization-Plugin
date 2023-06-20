@@ -1,6 +1,6 @@
 import { App, MarkdownView, TFile, TAbstractFile, normalizePath } from 'obsidian'
 
-export const DIRECTORYPATH = './MemorizationPlugin/'
+const DIRECTORYPATH = './MemorizationPlugin/'
 const PATH = 'MemorizationPlugin/'
 
 export class StudyNote {
@@ -14,7 +14,6 @@ export class StudyNote {
   private quality: string;
   private originalTitle: string
   private path: string
-  private file: TFile
 
   constructor(app: App, title: string, path: string) {
     this.originalTitle = title
@@ -26,12 +25,9 @@ export class StudyNote {
     this.repetition = '0'
     this.dateIntervalSet = '0'
     this.quality = '0'
-
-    this.createStudyNote()
   }
 
   formatNewTitle(title: string): string {
-
     const words = title.split('/');
     const modifiedWords = words.map(word => `[Memorization-Plugin]-${word}`);
 
@@ -71,7 +67,9 @@ export class StudyNote {
     <label style="font-weight: bold; font-size: 16px;" for="memorize-plugin-button">Note: To study another tag or note, you must select a tag from the Memorization plugin search bar.</label>'
 
 
-    try {
+    const file = this.app.vault.getAbstractFileByPath(this.path)
+    console.log(this.path)
+    if(!file){
       const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
 
       const updatedStr = content.replace(regex, "");
@@ -87,8 +85,7 @@ export class StudyNote {
         file.name = this.title
       }
     }
-    catch(error) {
-      console.log(error)
+    else {
       this.loadFile()
     }
   }
@@ -104,18 +101,18 @@ export class StudyNote {
       return result;
     }, []);
 
-    console.log(results)
     for(let path of results) {
       if(path == 'MemorizationPlugin'){
-        continue
+        const exists = await this.app.vault.adapter.exists("MemorizationPlugin")
+        if(!exists){
+          await this.app.vault.createFolder(DIRECTORYPATH)
+        }
       } else if (path.contains(".md")) {
-        console.log(updatedContent)
-        await this.app.vault.create(path, updatedContent)
+        const file = await this.app.vault.create(path, updatedContent)
+        await this.app.vault.modify(file, updatedContent)
       } else {
-        const file = await this.app.vault.adapter.exists(normalizePath(path))
-        console.log(path)
-        if(file){
-          console.log("WHY")
+        const exists = await this.app.vault.adapter.exists(normalizePath(path))
+        if(!exists){
           await this.app.vault.createFolder(path)
         }
       }
@@ -129,7 +126,6 @@ export class StudyNote {
 
   private async loadFile() {
     const scoreRegex = /memorize-plugin-score:\s*(\d+)/;
-    const prevDateRegex = /memorize-plugin-previous-date:(.*)/;
     const curDateRegex = /memorize-plugin-current-date:(.*)/;
     const efRegex = /memorize-plugin-ef:\s*(\d+)/;
     const repetitionsRegex = /memorize-plugin-repetitions:(\d+)/
@@ -142,7 +138,6 @@ export class StudyNote {
 
     const match = contents.match(scoreRegex);
     const dateMatch = contents.match(curDateRegex)
-    const prevDateMatch = contents.match(prevDateRegex)
     const efMatch = contents.match(efRegex)
     const repetitionsMatch = contents.match(repetitionsRegex)
     const intervalMatch = contents.match(intervalRegex)
@@ -222,6 +217,8 @@ export class StudyNote {
     await this.app.workspace.openLinkText(this.path as string, this.path as string, createTabs, { state: { mode: 'preview' } })
 
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+    // For some reason, regardless of the mode set above, the first study note opened is always in editable mode. This is to ensure that is not the case.
     if (activeView) {
       const viewState = activeView.getState();
       viewState.mode = 'preview';
