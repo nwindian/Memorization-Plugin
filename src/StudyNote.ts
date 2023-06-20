@@ -133,7 +133,7 @@ export class StudyNote {
 
 
     const originalFile = this.app.vault.getAbstractFileByPath(this.path)
-		this.content = await this.app.vault.read(originalFile as TFile)
+    this.content = await this.app.vault.read(originalFile as TFile)
     const contents = this.content
 
     const match = contents.match(scoreRegex);
@@ -160,13 +160,13 @@ export class StudyNote {
     }
   }
 
-	calculateSuperMemoEF() {
-		const repetitions = parseInt(this.repetition, 10)
-		const quality = parseInt(this.quality, 10)
-		let ef = parseFloat(this.efScore)
-		ef = parseFloat(ef.toFixed(1))
+  calculateSuperMemoEF() {
+    const repetitions = parseInt(this.repetition, 10)
+    const quality = parseInt(this.quality, 10)
+    let ef = parseFloat(this.efScore)
+    ef = parseFloat(ef.toFixed(1))
 
-		if(quality >= 3){
+    if(quality >= 3){
       if(repetitions === 0){
         this.interval = 1
       } else if (repetitions === 1){
@@ -178,14 +178,14 @@ export class StudyNote {
 
       this.repetition = (repetitions + 1).toString()
       this.efScore = (ef + (.1 - (5 - quality) * (.08 + (5 - quality) * .02))).toFixed(1)
-		} else {
-	    this.repetition = '0'
-		  this.interval = 1
-		}
-		if (ef < 1.3){
-		  this.efScore = '1.3'
-		}
-	}
+    } else {
+      this.repetition = '0'
+      this.interval = 1
+    }
+    if (ef < 1.3){
+      this.efScore = '1.3'
+    }
+  }
 
   updateNoteText() {
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
