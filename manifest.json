@@ -3,7 +3,7 @@
 	"name": "Memorization",
 	"version": "0.7.0",
 	"minAppVersion": "0.15.0",
-	"description": "This is an index card plugin for memorizing your notes. This plugin utilizes a spaced repetion (SM-2) algorithm.",
+	"description": "Generates study index notes using a spaced repetition algorithm (SM-2).",
 	"author": "Joseph Cochran",
 	"authorUrl": "https://github.com/nwindian",
 	"fundingUrl": "https://ko-fi.com/josephcochran",
