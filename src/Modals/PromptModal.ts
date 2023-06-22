@@ -1,5 +1,6 @@
 import { Modal, App, TAbstractFile } from 'obsidian'
 import { Notes } from 'src/Models/Notes'
+//import '../../styles.css'
 
 export class PromptModal extends Modal {
   private notes: Array<Notes>
@@ -22,6 +23,8 @@ export class PromptModal extends Modal {
             paths: this.notes.filter((o) => o.tags?.includes(tag)).map((o) => o.path)
           }));
       });
+
+      this.modalEl.addClass("memorizationModal")
   }
 
   calculateSuggestions(input: string): any[] {
@@ -32,7 +35,7 @@ export class PromptModal extends Modal {
           const lowerCase = value.toLowerCase().substring(1)
           const upperCase = value.toUpperCase().substring(1)
 
-          if ((lowerCase.contains(input) || upperCase.contains(input) || value.contains(input)) && !value.contains("MemorizationPlugin")) {
+          if ((lowerCase.contains(input) || upperCase.contains(input) || value.contains(input)) && !value.contains("MemorizationPlugin") && input !== '') {
               if(!suggestions.contains(value.toString())) {
                   suggestions.push({tag: value.toString(), titles: doc.titles, paths: doc.paths })
               }
@@ -57,20 +60,8 @@ export class PromptModal extends Modal {
       )
 
       this.titleEl.createEl('h1', { text: 'Search by tag'} )
-      const searchInput = this.contentEl.createEl('input', { type: 'text' })
-      this.contentEl.style.height = '500px'
-      this.contentEl.style.maxHeight = '150px'
-
-      const suggestionsContainer = this.contentEl.createDiv()
-      suggestionsContainer.style.backgroundColor = '#2A2A2A'
-      suggestionsContainer.style.border = '7px solid #2A2A2A'
-      suggestionsContainer.style.borderRadius = '3px'
-      suggestionsContainer.style.maxHeight = '150px'
-      suggestionsContainer.style.overflow = 'auto'
-      suggestionsContainer.style.visibility = 'hidden'
-      suggestionsContainer.style.position = 'absolute'
-      suggestionsContainer.style.width = '92%'
-      searchInput.style.width = '100%'
+      const searchInput = this.contentEl.createEl('input', { type: 'text', cls: "memorizationSearchInput" })
+      const suggestionsContainer = this.contentEl.createEl('div', { cls: "memorizationSuggestionsContainer" })
 
       searchInput.addEventListener('input', async (e) => {
           suggestionsContainer.textContent = ''
@@ -85,15 +76,15 @@ export class PromptModal extends Modal {
           }
 
           suggestions.forEach((suggestion) => {
-              const item = document.createElement('div')
+              const item = suggestionsContainer.createEl('div', { cls: 'memorizationItemLeave' })
               item.textContent = suggestion.tag
 
               item.addEventListener('mouseenter', () => {
-                  item.style.color = 'grey'
+                item.className = "memorizationItemEnter"
               })
 
               item.addEventListener('mouseleave', () => {
-                  item.style.color = 'white'
+                  item.className = "memorizationItemLeave"
               })
 
               item.addEventListener('click', async () => {
@@ -113,8 +104,6 @@ export class PromptModal extends Modal {
                       this.close();
                   });
               })
-
-              suggestionsContainer.appendChild(item)
           })
       })
   }

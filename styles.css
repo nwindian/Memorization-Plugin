@@ -1,8 +1,28 @@
-/*
+.memorizationModal {
+  height: 5000px;
+  max-height: 300px;
+}
+  
+.memorizationSuggestionsContainer {
+  background-color: #2A2A2A;
+  border: 7px solid #2A2A2A;
+  border-radius: 3px;
+  max-height: 150px;
+  overflow: auto;
+  visibility: hidden;
+  position: absolute;
+  width: 92%;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.memorizationSearchInput {
+  padding-top: -5;
+  width: 100%;
+}
 
-If your plugin does not need CSS, delete this file.
+.memorizationItemEnter {
+  color: grey
+}
 
-*/
+.memorizationItemLeave {
+  color: white
+}

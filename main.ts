@@ -30,34 +30,7 @@ export default class Learning extends Plugin {
     this.studyNotes = []
 
     this.addRibbonIcon('brain-cog', 'Memorize Notes', async () => {
-      const files =  this.app.vault.getMarkdownFiles()
-      let notes: Notes[] = [];
-      let i = 0
-      files.forEach( (file) => {
-        const cache = this.app.metadataCache.getCache(file.path)
-        const tags = getAllTags(cache as CachedMetadata)
-
-        notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
-        i++
-      })
-
-      this.notes = notes
-      this.suggestionResults = await new PromptModal(this.app, this.notes).open()
-
-      const p = this.suggestionResults.titlePaths[0].path
-      const s = normalizePath(p)
-
-      this.studyNotes = []
-      for (const titlePath of this.suggestionResults.titlePaths) {
-        const studyNote = new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path))
-        await studyNote.createStudyNote()
-        this.studyNotes.push(studyNote)
-      }
-
-      this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
-
-      this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
-      this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
+      await this.startStudy()
     });
 
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
@@ -67,31 +40,7 @@ export default class Learning extends Plugin {
       checkCallback: (checking: boolean) => {
         if (!checking) {
           (async () => {
-            const files =  this.app.vault.getMarkdownFiles()
-            let notes: Notes[] = [];
-            let i = 0
-            files.forEach( (file) => {
-              const cache = this.app.metadataCache.getCache(file.path)
-              const tags = getAllTags(cache as CachedMetadata)
-
-              notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
-              i++
-            })
-
-            this.notes = notes
-            this.suggestionResults = await new PromptModal(this.app, this.notes).open()
-
-            this.studyNotes = []
-            for (const titlePath of this.suggestionResults.titlePaths) {
-              const studyNote = new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path))
-              await studyNote.createStudyNote()
-              this.studyNotes.push(studyNote)
-            }
-
-            this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
-
-            this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
-            this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
+            await this.startStudy()
           })();
         }
 
@@ -157,6 +106,37 @@ export default class Learning extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+
+  async startStudy() {
+    const files =  this.app.vault.getMarkdownFiles()
+    let notes: Notes[] = [];
+    let i = 0
+    files.forEach( (file) => {
+      const cache = this.app.metadataCache.getCache(file.path)
+      const tags = getAllTags(cache as CachedMetadata)
+
+      notes.push({ id: i, tags: tags, title: file.path, path: this.app.vault.getResourcePath(file)})
+      i++
+    })
+
+    this.notes = notes
+    this.suggestionResults = await new PromptModal(this.app, this.notes).open()
+
+    const p = this.suggestionResults.titlePaths[0].path
+    const s = normalizePath(p)
+
+    this.studyNotes = []
+    for (const titlePath of this.suggestionResults.titlePaths) {
+      const studyNote = new StudyNote(this.app, titlePath.title, normalizePath(titlePath.path))
+      await studyNote.createStudyNote()
+      this.studyNotes.push(studyNote)
+    }
+
+    this.studyNotes = this.studyNotes.sort((a, b) => a.interval - b.interval);
+
+    this.currentLearningNote = this.studyNotes[this.currentLearningNoteIndex]
+    this.studyNotes[this.currentLearningNoteIndex].display(this.settings.createTabs)
+  }
 }
 
 class MemorizeSettingTab extends PluginSettingTab {
@@ -172,7 +152,7 @@ class MemorizeSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl('h2', {text: 'Settings'});
+    containerEl.createEl('h2', {text: 'General Settings'});
 
     new Setting(containerEl)
       .setName('Delete memorization notes after creation')
@@ -193,5 +173,8 @@ class MemorizeSettingTab extends PluginSettingTab {
         this.plugin.settings.createTabs = value
         await this.plugin.saveSettings()
       }))
+
+      containerEl.createEl('h2', {text: 'About'});
+      containerEl.createEl('a', {text: "Memorization", href: "https://github.com/nwindian/Memorization-Plugin"})
   }
 }
