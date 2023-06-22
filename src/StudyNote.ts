@@ -38,6 +38,9 @@ export class StudyNote {
 
   async createStudyNote() {
     const originalFile = this.app.vault.getAbstractFileByPath(this.originalTitle)
+    if (!(originalFile instanceof TFile)) {
+      return
+    }
     let content = await this.app.vault.read(originalFile as TFile)
 
     const formattedContent = content.replace(/[\r\n]+/g, '\n>')
@@ -68,7 +71,6 @@ export class StudyNote {
 
 
     const file = this.app.vault.getAbstractFileByPath(this.path)
-    console.log(this.path)
     if(!file){
       const regex = /\n?---[\s\S]*?---\n?|\n?>(?=#)/g;
 
@@ -213,7 +215,6 @@ export class StudyNote {
   }
 
   async display(createTabs: boolean): Promise<void> {
-    console.log(this.path)
     await this.app.workspace.openLinkText(this.path as string, this.path as string, createTabs, { state: { mode: 'preview' } })
 
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
