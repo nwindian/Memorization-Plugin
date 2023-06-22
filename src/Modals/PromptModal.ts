@@ -1,12 +1,9 @@
-import { Modal, App, TAbstractFile } from 'obsidian'
+import { Modal, App } from 'obsidian'
 import { Notes } from 'src/Models/Notes'
-//import '../../styles.css'
 
 export class PromptModal extends Modal {
   private notes: Array<Notes>
   private docs: Array<any>
-  private file: TAbstractFile | null
-  private stuff: any
   private resolveFn: ((result: string | null) => void) | null = null;
 
   constructor(app: App, notes: Notes[]) {
