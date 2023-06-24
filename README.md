@@ -16,5 +16,5 @@ By default, this plugin will create and store new study notes for you. This coul
 By default, when you go to the next note in the sequence, a new tab is not created. Enable this if you\'d like a new tab created.
 
 # Support
-If you enjoy this plugin, please consider supporting buying me a coffee over at [ko-fi.com/josephcochran](https://ko-fi.com/josephcochran)
+If you enjoy this plugin, please consider buying me a coffee over at [ko-fi.com/josephcochran](https://ko-fi.com/josephcochran)
 [<img style="float:left" src="https://user-images.githubusercontent.com/14358394/115450238-f39e8100-a21b-11eb-89d0-fa4b82cdbce8.png" width="200">](https://ko-fi.com/josephcochran)
